@@ -41,16 +41,4 @@ botConfig.bots.forEach(bot => {
   client.login(bot.token);
 });
 
-// // Run extendData every 24 hours
-// setInterval(() => {
-//   extendTradingViewAlert()
-//     .then(() => logger.info("Successfully extended TradingView alert data"))
-//     .catch((error: Error) => logger.error("Failed to extend TradingView alert data:", error));
-// }, 24 * 60 * 60 * 1000);  // 24 hours in milliseconds
-
-// // Run it once on startup
-// extendTradingViewAlert()
-//   .then(() => logger.info("Initial TradingView alert data extension complete"))
-//   .catch((error: Error) => logger.error("Initial TradingView alert data extension failed:", error));
-
 botController(tickers).catch(logger.error);
