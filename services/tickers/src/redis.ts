@@ -3,6 +3,7 @@ import { createClient } from "redis";
 import { updateDiscordBot } from "./updates";
 import logger from "./logger";
 import { Bot } from "./types";
+import { pingHeartbeat } from "./pingStatus";
 
 export async function botController(tickers: { client: Client, bot: Bot }[]) {
   const redisClient = createClient({
@@ -16,6 +17,7 @@ export async function botController(tickers: { client: Client, bot: Bot }[]) {
   await redisClient.connect();
   await redisClient.subscribe("ticker_updates", async (message: string, channel: string) => {
     logger.info(`Received message from ${channel}: ${message}`);
+    await pingHeartbeat();
     const data = JSON.parse(message);
     if (!Array.isArray(data.stocks)) return;
     for (const info of data.stocks) {

@@ -39,6 +39,7 @@ services:
       dockerfile: dockerfile.tickers
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - UPTIME_HEARTBEAT_URL=${UPTIME_HEARTBEAT_URL}
     depends_on:
       redis:
         condition: service_healthy
