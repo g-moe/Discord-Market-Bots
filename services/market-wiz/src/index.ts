@@ -15,12 +15,26 @@ const client = new Client({
   ]
 });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+function setActivity(client: Client) {
+  client.user?.setActivity("🧙🏻‍♂️ Summoning Market Info", {
+    type: ActivityType.Custom,
+  });
+}
+
 client.on(Events.ClientReady, () => {
-  client.user?.setActivity("🧙🏻‍♂️ Summoning Market Info", { type: ActivityType.Custom });
+  // Log ready
   logger.info(`Logged in as ${client.user?.tag}!`);
+
+  // Initial setup
+  setActivity(client);
   deployCommandsToAll();
   setupNewsCalendar(client);
+
+  // Refresh activity every 24 hours
+  setInterval(() => setActivity(client), DAY_MS);
 });
+
 client.on(Events.Debug, (m) => logger.debug(m));
 client.on(Events.Warn, (m) => logger.warn(m));
 client.on(Events.Error, (m) => logger.error(m));
