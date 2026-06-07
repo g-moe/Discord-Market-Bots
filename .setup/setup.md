@@ -13,7 +13,7 @@
 ### 1. Clone Git Repo
 
 ```bash
-git clone https://github.com/theprogrammergary/Discord-Ticker-Bots
+git clone https://github.com/g-moe/Discord-Ticker-Bots
 cd Discord-Ticker-Bots/services
 ```
 
