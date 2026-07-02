@@ -1,4 +1,4 @@
-import { ActivityType, Client, Events, GatewayIntentBits, Message, Guild, Interaction } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, Guild, Interaction, Message } from "discord.js";
 import logger from "./utils/logger";
 import { config } from "./utils/config";
 import { commands } from "./commands";
@@ -50,7 +50,7 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   
   // Check if the interaction is from a guild (server) and not a DM
   if (!interaction.guild) {
-    await interaction.reply({ content: 'Commands can only be used in servers, not in DMs.', ephemeral: true });
+    await interaction.reply({ content: "Commands can only be used in servers, not in DMs.", ephemeral: true });
     return;
   }
 
@@ -65,12 +65,10 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   }
 });
 
-
 client.on(Events.MessageCreate, async (message: Message) => {
   if (message.channelId === "1248771982980284436" && message.author.id === "1240686103959179274") {
     await newsHeadline(message);
   }
 });
-
 
 client.login(config.DISCORD_TOKEN);

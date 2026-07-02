@@ -5,11 +5,10 @@ import { createNewsEmbed } from "../../commands/news";
 import logger from "../../utils/logger";
 
 export async function checkNewsCalendar(client: Client) {
-
   const result = await createNewsEmbed(true, { 
-    country: 'USA',
-    timeframe: 'Next 5 minutes',
-    importance: '🔴🟠🟡'
+    country: "USA",
+    timeframe: "Next 5 minutes",
+    importance: "🔴🟠🟡"
   });
 
   if (!result) return;
@@ -26,9 +25,7 @@ export async function checkNewsCalendar(client: Client) {
   if (tradingChannel && tradingChannel.isTextBased()) {
     await tradingChannel.send({ embeds: [result.embed], components: [result.row as any] });
   }
-
 }
-
 
 async function runNewsCalendarCheck(client: Client) {
   try {
@@ -38,9 +35,7 @@ async function runNewsCalendarCheck(client: Client) {
   }
 }
 
-
 export function setupNewsCalendar(client: Client) {
-
   const INTERVAL_MINUTES = 5;   
   const MS_IN_MINUTE = 60000;
   const RUNTIME_INTERVAL = INTERVAL_MINUTES * MS_IN_MINUTE;

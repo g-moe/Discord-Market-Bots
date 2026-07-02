@@ -1,0 +1,14 @@
+{
+  "name": "discord-market-bots",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:market-wiz",
+    "build:market-wiz": "npm --prefix services/market-wiz run build",
+    "lint": "npm --prefix services/market-wiz exec eslint -- services/market-wiz/src --ext .ts --fix",
+    "test": "npm run test:market-wiz",
+    "test:market-wiz": "npm --prefix services/market-wiz test",
+    "tsc": "npm run typecheck",
+    "typecheck": "npm run typecheck:market-wiz",
+    "typecheck:market-wiz": "npm --prefix services/market-wiz exec -- tsc --noEmit -p services/market-wiz/tsconfig.json"
+  }
+}

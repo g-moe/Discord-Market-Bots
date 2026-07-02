@@ -54,7 +54,7 @@ export async function createNewsEmbed(scheduled:boolean, params: TFetchNewsParam
 
     const events = eventsGroupedByDate[datetime];
     let eventDescriptions = events.map(event =>
-      `${getCountryFlag(event.countryCode)} ${getColorForImportance(event.volatility, event.name)} - ${event.name}`).join("\n");
+      `${getCountryFlag()} ${getColorForImportance(event.volatility, event.name)} - ${event.name}`).join("\n");
 
     if (eventDescriptions.length > 1024) {
       eventDescriptions = eventDescriptions.substring(0, 1021) + "...";
@@ -117,7 +117,7 @@ export async function execute(interaction: CommandInteraction) {
   const importance = interaction.options.get("importance")?.value?.toString();
 
   if (!country || !timeframe || !importance) {
-    console.error("Missing required options");
+    logger.error("Missing required options");
     await interaction.reply({ content: "Error: Missing required options", ephemeral: true });
     return;
   }
@@ -171,7 +171,7 @@ function groupEventsByDate(data: TNewsEvent[]) {
   return sortedEventsGroupedByDate;
 }
 
-function getCountryFlag(country: string) {
+function getCountryFlag() {
   return "🇺🇸"
 }
 

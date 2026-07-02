@@ -1,8 +1,6 @@
-import { Message, EmbedBuilder } from "discord.js";
-
+import { EmbedBuilder, Message } from "discord.js";
 
 export async function newsHeadline(message: Message, ) {
-
   const embed: EmbedBuilder = new EmbedBuilder();
   embed.setTimestamp();
   embed.setFooter({ 
@@ -10,21 +8,19 @@ export async function newsHeadline(message: Message, ) {
     iconURL: "https://cdn.discordapp.com/avatars/1240686103959179274/f2f09abc9a9416a72961869bd7108cef.webp?size=160"
   });
 
-
   const isImportant = message.content.includes("🔴");
   switch (isImportant) {
-    case true:
-      embed.setTitle("🚨 BREAKING NEWS");
-      embed.setColor(0xFF0000);
-      embed.setDescription(message.content.replace("🔴", "").trim());
-      break;
+  case true:
+    embed.setTitle("🚨 BREAKING NEWS");
+    embed.setColor(0xFF0000);
+    embed.setDescription(message.content.replace("🔴", "").trim());
+    break;
 
-    case false:
-      embed.setColor(0x808080);
-      embed.setDescription(message.content);
-      break;
+  case false:
+    embed.setColor(0x808080);
+    embed.setDescription(message.content);
+    break;
   }
-
 
   // post the embed to the news channel
   const guild = await message.client.guilds.fetch("668989780398440466");
@@ -33,7 +29,6 @@ export async function newsHeadline(message: Message, ) {
     await newsChannel.send({ embeds: [embed] });
   }
 
-
   // post important news to the trading chat
   if (isImportant) {
     const tradingChat = await guild.channels.fetch("668989780398440470");
@@ -41,6 +36,5 @@ export async function newsHeadline(message: Message, ) {
       await tradingChat.send({ embeds: [embed] });
     }
   }
-
 }
 
