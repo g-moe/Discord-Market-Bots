@@ -11,7 +11,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    // GatewayIntentBits.MessageContent - add back when discord approves
   ]
 });
 
@@ -65,10 +65,12 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   }
 });
 
-client.on(Events.MessageCreate, async (message: Message) => {
-  if (message.channelId === "1248771982980284436" && message.author.id === "1240686103959179274") {
-    await newsHeadline(message);
-  }
-});
+if (config.ENABLE_MESSAGE_CONTENT_INTENT) {
+  client.on(Events.MessageCreate, async (message: Message) => {
+    if (message.channelId === "1248771982980284436" && message.author.id === "1240686103959179274") {
+      await newsHeadline(message);
+    }
+  });
+}
 
 client.login(config.DISCORD_TOKEN);
