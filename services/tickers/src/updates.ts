@@ -1,5 +1,5 @@
 import { ActivityType, Client } from "discord.js";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { Bot } from "./types";
 import logger from "./logger";
 
@@ -71,18 +71,54 @@ async function updateBotBio(bot: Bot, botData: any): Promise<void> {
         RVOL=${botData.rvol}
     `.trim();
 
-  const url: string = `https://discord.com/api/v9/applications/${bot.id}`;
   const data: { description: string } = { description: bioUpdate.replace(/,\s+/g, ", ") };
+
+  await patchDiscordApplication(bot, data);
+};
+
+function isRetryableDiscordError(error: unknown) {
+  if (!isAxiosError(error)) return false;
+
+  return (
+    error.code === "ECONNABORTED" ||
+    error.response?.status === 500 ||
+    error.response?.status === 503 ||
+    error.response?.status === 429
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function patchDiscordApplication(bot: Bot, data: { description: string }) {
+  const url: string = `https://discord.com/api/v9/applications/${bot.id}`;
   const headers: { Authorization: string } = {
     Authorization: `Bot ${bot.token}`,
   };
 
-  try {
-    const response = await axios.patch(url, data, { headers, timeout: 10000 });
-    if (response.status === 429) {
-      logger.warn(`${bot.symbolNick} server update is being rate limited`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await axios.patch(url, data, { headers, timeout: 10000 });
+      return;
+    } catch (error) {
+      if (!isRetryableDiscordError(error) || attempt === 3) {
+        logger.warn({
+          err: error,
+          symbol: bot.symbolName,
+          applicationId: bot.id,
+          attempt
+        }, "failed to update ticker bot description");
+        return;
+      }
+
+      const retryAfterHeader = isAxiosError(error) ? error.response?.headers?.["retry-after"] : undefined;
+      const retryAfterSeconds = Number(retryAfterHeader ?? attempt);
+      const retryDelay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? retryAfterSeconds * 1000
+        : attempt * 1000;
+
+      await sleep(retryDelay);
     }
-  } catch (error) {
-    logger.error(error);
   }
-};
+}
