@@ -42,7 +42,7 @@ export async function updateDiscordBot(client: Client, bot: Bot, data: any) {
   // update bio info
   await updateBotBio(bot, botData)
 
-  logger.info(`Finished updating ${bot.symbolName}`)
+  logger.debug({ symbol: bot.symbolName }, "finished updating ticker bot")
 }
 
 function cleanBotData(bot: Bot, data: any): any {

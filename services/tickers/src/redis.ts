@@ -33,11 +33,19 @@ export async function botController(tickers: { client: Client, bot: Bot }[]) {
 
     await pingHeartbeat();
     if (!Array.isArray(data.stocks)) return;
+    let updatedCount = 0;
     for (const info of data.stocks) {
       const mappedTicker = tickers.find((ticker) => ticker.bot.symbolName === info.symbol);
       if (mappedTicker) {
         await updateDiscordBot(mappedTicker.client, mappedTicker.bot, info);
+        updatedCount++;
       }
     }
+
+    logger.info({
+      channel,
+      receivedCount: data.stocks.length,
+      updatedCount
+    }, "processed ticker update message");
   });
 }
