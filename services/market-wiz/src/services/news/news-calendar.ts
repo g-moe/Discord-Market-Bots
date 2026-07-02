@@ -2,6 +2,7 @@ import { Client } from "discord.js";
 
 // import { fetchNewsData } from "./news-fetch";
 import { createNewsEmbed } from "../../commands/news";
+import logger from "../../utils/logger";
 
 export async function checkNewsCalendar(client: Client) {
 
@@ -29,6 +30,15 @@ export async function checkNewsCalendar(client: Client) {
 }
 
 
+async function runNewsCalendarCheck(client: Client) {
+  try {
+    await checkNewsCalendar(client);
+  } catch (error) {
+    logger.error({ err: error }, "scheduled news calendar check failed");
+  }
+}
+
+
 export function setupNewsCalendar(client: Client) {
 
   const INTERVAL_MINUTES = 5;   
@@ -39,11 +49,10 @@ export function setupNewsCalendar(client: Client) {
   const delay = RUNTIME_INTERVAL - ((now.getMinutes() % INTERVAL_MINUTES) * MS_IN_MINUTE + now.getSeconds() * 1000 + now.getMilliseconds());
 
   setTimeout(() => {
-    checkNewsCalendar(client);
+    void runNewsCalendarCheck(client);
     setInterval(() => {
-      checkNewsCalendar(client);
+      void runNewsCalendarCheck(client);
     }, RUNTIME_INTERVAL);
   }, delay);
 }
-
 

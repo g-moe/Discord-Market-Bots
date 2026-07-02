@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import logger from "../../utils/logger";
 
 
@@ -80,12 +80,47 @@ function getStartEndDates() {
   return times;
 }
 
+function isTemporaryCalendarError(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+
+  return (
+    error.code === "EAI_AGAIN" ||
+    error.code === "ECONNRESET" ||
+    error.response?.status === 500 ||
+    error.response?.status === 502 ||
+    error.response?.status === 524
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function requestNewsData(config: AxiosRequestConfig) {
+  const attempts = 3;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await axios.request<TNewsEvent[]>(config);
+    } catch (error) {
+      if (!isTemporaryCalendarError(error) || attempt === attempts) {
+        throw error;
+      }
+
+      await sleep(attempt * 1000);
+    }
+  }
+
+  throw new Error("FXStreet calendar request failed");
+}
+
 export async function fetchNewsData(params: TFetchNewsParams) {
   const url = createNewsUrl(params);
-  const config = {
-    method: 'get',
+  const config: AxiosRequestConfig = {
+    method: "get",
+    timeout: 10000,
     maxBodyLength: Infinity,
-    url: `${url}`,
+    url,
     headers: { 
       'accept': 'application/json', 
       'accept-language': 'en-US,en;q=0.9', 
@@ -105,7 +140,7 @@ export async function fetchNewsData(params: TFetchNewsParams) {
   };
 
   try {
-    const response = await axios.request(config);
+    const response = await requestNewsData(config);
 
     if (response.data) {
       return filterNewsData(response.data, params);
@@ -113,7 +148,13 @@ export async function fetchNewsData(params: TFetchNewsParams) {
 
     return null;
   } catch (error) {
-    logger.error(error);
+    logger.warn({
+      err: error,
+      url,
+      country: params.country,
+      timeframe: params.timeframe,
+      importance: params.importance
+    }, "FXStreet calendar request failed");
     return null;
   }
 }

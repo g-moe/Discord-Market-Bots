@@ -55,8 +55,13 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   }
 
   const { commandName } = interaction;
-  if (commands[commandName as keyof typeof commands]) {
-    commands[commandName as keyof typeof commands].execute(interaction);
+  const command = commands[commandName as keyof typeof commands];
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    logger.error({ err: error, commandName }, "command failed");
   }
 });
 
@@ -69,4 +74,3 @@ client.on(Events.MessageCreate, async (message: Message) => {
 
 
 client.login(config.DISCORD_TOKEN);
-

@@ -10,9 +10,75 @@ import {
 
 import logger from "../utils/logger";
 
-import { countryOptions, timeframeOptions, importanceOptions, TFetchNewsParams, fetchNewsData, TNewsEvent } from "../services/news/news-fetch";
+import { countryOptions, fetchNewsData, importanceOptions, TFetchNewsParams, timeframeOptions, TNewsEvent } from "../services/news/news-fetch";
 
+export async function createNewsEmbed(scheduled:boolean, params: TFetchNewsParams) {
+  const data = await fetchNewsData(params);
 
+  const embed = new EmbedBuilder()
+    .setColor("#1E1F20")
+    .setTitle("📅 **Upcoming News Events**")
+    .setTimestamp()
+    .setFooter({
+      text: "All event times are in Eastern Standard Timezone",
+      iconURL: "https://cdn.discordapp.com/emojis/1212202807193767976.webp?quality=lossless"
+    })
+
+  const openChartButton = new ButtonBuilder()
+    .setLabel("See More News")
+    .setStyle(ButtonStyle.Link)
+    .setEmoji("📆")
+    .setURL("https://www.tradingview.com/economic-calendar/?aff_id=133415")
+
+  const row: ActionRowBuilder = new ActionRowBuilder()
+    .addComponents(openChartButton);
+
+  if (!data || data.length === 0) {
+    if (scheduled) {
+      return null;
+    } else {
+      embed.setDescription("*No news events were found to be scheduled with your selected criteria.*");
+      return { embed, row };
+    }
+  }
+
+  const eventsGroupedByDate = groupEventsByDate(data);
+  logger.debug({
+    eventCount: data.length,
+    groupCount: Object.keys(eventsGroupedByDate).length,
+    scheduled
+  }, "created news calendar embed");
+  let fieldsAdded = 0;
+  for (const datetime in eventsGroupedByDate) {
+    if (fieldsAdded >= 25) break;
+
+    const events = eventsGroupedByDate[datetime];
+    let eventDescriptions = events.map(event =>
+      `${getCountryFlag(event.countryCode)} ${getColorForImportance(event.volatility, event.name)} - ${event.name}`).join("\n");
+
+    if (eventDescriptions.length > 1024) {
+      eventDescriptions = eventDescriptions.substring(0, 1021) + "...";
+    }
+
+    const date = new Date(datetime).toLocaleTimeString("en-US", {
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/New_York"
+    });
+
+    embed.addFields(
+      {
+        name: `**__ ${date}__**__  -  *(${getTimeDelta(datetime)})*__`,
+        value: eventDescriptions,
+        inline: false
+      });
+    fieldsAdded++;
+  }
+
+  return { embed, row };
+}
 
 export const data = new SlashCommandBuilder()
   .setName("news")
@@ -45,9 +111,7 @@ export const data = new SlashCommandBuilder()
       )
   );
 
-
 export async function execute(interaction: CommandInteraction) {
-
   const country = interaction.options.get("country")?.value?.toString();
   const timeframe = interaction.options.get("timeframe")?.value?.toString();
   const importance = interaction.options.get("importance")?.value?.toString();
@@ -84,74 +148,6 @@ export async function execute(interaction: CommandInteraction) {
     });
 }
 
-
-
-
-export async function createNewsEmbed(scheduled:boolean, params: TFetchNewsParams) {
-  const data = await fetchNewsData(params);
-
-  const embed = new EmbedBuilder()
-    .setColor("#1E1F20")
-    .setTitle("📅 **Upcoming News Events**")
-    .setTimestamp()
-    .setFooter({
-      text: "All event times are in Eastern Standard Timezone",
-      iconURL: "https://cdn.discordapp.com/emojis/1212202807193767976.webp?quality=lossless"
-    })
-
-  const openChartButton = new ButtonBuilder()
-  .setLabel("See More News")
-  .setStyle(ButtonStyle.Link)
-  .setEmoji("📆")
-  .setURL("https://www.tradingview.com/economic-calendar/?aff_id=133415")
-
-  const row: ActionRowBuilder = new ActionRowBuilder()
-    .addComponents(openChartButton);
-
-  if (!data || data.length === 0) {
-
-    if (scheduled) {
-      return null;
-    } else {
-      embed.setDescription("*No news events were found to be scheduled with your selected criteria.*");
-      return { embed, row };
-    }
-  }
-
-  const eventsGroupedByDate = groupEventsByDate(data);
-  logger.info(eventsGroupedByDate);
-  let fieldsAdded = 0;
-  for (const datetime in eventsGroupedByDate) {
-    if (fieldsAdded >= 25) break;
-
-    const events = eventsGroupedByDate[datetime];
-      let eventDescriptions = events.map(event =>
-        `${getCountryFlag(event.countryCode)} ${getColorForImportance(event.volatility, event.name)} - ${event.name}`).join("\n");
-
-      if (eventDescriptions.length > 1024) {
-        eventDescriptions = eventDescriptions.substring(0, 1021) + "...";
-      }
-
-      const date = new Date(datetime).toLocaleTimeString("en-US", {
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "America/New_York"
-      });
-
-      embed.addFields(
-        {
-          name: `**__ ${date}__**__  -  *(${getTimeDelta(datetime)})*__`,
-          value: eventDescriptions,
-          inline: false
-      });
-    fieldsAdded++;
-  }
-
-  return { embed, row };
-}
-
 type EventsGroupedByDate = { [key: string]: TNewsEvent[] };
 function groupEventsByDate(data: TNewsEvent[]) {
   const eventsGroupedByDate = data.reduce<EventsGroupedByDate>((acc, event) => {
@@ -175,26 +171,24 @@ function groupEventsByDate(data: TNewsEvent[]) {
   return sortedEventsGroupedByDate;
 }
 
-
 function getCountryFlag(country: string) {
   return "🇺🇸"
 }
 
 function getColorForImportance(importance: string, title: string) {
-
   if (title.toUpperCase().includes("FED")) {
     return "🔵";
   }
 
   switch (importance) {
-    case "HIGH":
-      return "🔴";
-    case "MEDIUM":
-      return "🟠";
-    case "LOW":
-      return "🟡";
-    default:
-      return "⚪️";
+  case "HIGH":
+    return "🔴";
+  case "MEDIUM":
+    return "🟠";
+  case "LOW":
+    return "🟡";
+  default:
+    return "⚪️";
   }
 }
 
@@ -205,9 +199,9 @@ function getTimeDelta(datetime: string) {
   const deltaMinutes = Math.floor(deltaMs / (1000 * 60));
   
   if (deltaMinutes < 60) {
-    return `${deltaMinutes} minute${deltaMinutes !== 1 ? 's' : ''}`;
+    return `${deltaMinutes} minute${deltaMinutes !== 1 ? "s" : ""}`;
   } else {
     const deltaHours = Math.floor(deltaMinutes / 60);
-    return `${deltaHours} hour${deltaHours !== 1 ? 's' : ''}`;
+    return `${deltaHours} hour${deltaHours !== 1 ? "s" : ""}`;
   }
 }
