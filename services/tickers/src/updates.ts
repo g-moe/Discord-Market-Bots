@@ -56,25 +56,37 @@ function cleanBotData(bot: Bot, data: any): any {
 }
 
 async function updateBotBio(bot: Bot, botData: any): Promise<void> {
-  const bioUpdate: string = `
-        RTH High=${botData.rthH},   
-        RTH Low=${botData.rthL},   
-        RTH Open=${botData.rthO},   
-        YH=${botData.yh},   
-        YL=${botData.yl},   
-        YC=${botData.yc},   
-        ONH=${botData.onh},   
-        ONL=${botData.onl},   
-        IBH=${botData.ibh},   
-        IBL=${botData.ibl},   
-        VWAP=${botData.vwap},   
-        RVOL=${botData.rvol}
-    `.trim();
+  const bioUpdate = [
+    `RTH High=${displayValue(botData.rthH)}`,
+    `RTH Low=${displayValue(botData.rthL)}`,
+    `RTH Open=${displayValue(botData.rthO)}`,
+    `YH=${displayValue(botData.yh)}`,
+    `YL=${displayValue(botData.yl)}`,
+    `YC=${displayValue(botData.yc)}`,
+    `ONH=${displayValue(botData.onh)}`,
+    `ONL=${displayValue(botData.onl)}`,
+    `IBH=${displayValue(botData.ibh)}`,
+    `IBL=${displayValue(botData.ibl)}`,
+    `VWAP=${displayValue(botData.vwap)}`,
+    `RVOL=${displayValue(botData.rvol)}`
+  ].join(", ");
 
-  const data: { description: string } = { description: bioUpdate.replace(/,\s+/g, ", ") };
+  const data: { description: string } = { description: bioUpdate };
 
   await patchDiscordApplication(bot, data);
 };
+
+function displayValue(value: unknown) {
+  if (value === undefined || value === null || value === "" || value === "NaN") {
+    return "N/A";
+  }
+
+  if (typeof value === "number" && Number.isNaN(value)) {
+    return "N/A";
+  }
+
+  return String(value);
+}
 
 function isRetryableDiscordError(error: unknown) {
   if (!isAxiosError(error)) return false;
