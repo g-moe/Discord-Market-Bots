@@ -4,6 +4,7 @@
   "scripts": {
     "build": "npm run build:market-wiz",
     "build:market-wiz": "npm --prefix services/market-wiz run build",
+    "build:public-site": "npm --prefix public-site run build",
     "lint": "npm --prefix services/market-wiz exec eslint -- services/market-wiz/src --ext .ts --fix",
     "test": "npm run test:market-wiz",
     "test:market-wiz": "npm --prefix services/market-wiz test",
