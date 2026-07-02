@@ -16,9 +16,22 @@ export async function botController(tickers: { client: Client, bot: Bot }[]) {
 
   await redisClient.connect();
   await redisClient.subscribe("ticker_updates", async (message: string, channel: string) => {
-    logger.info(`Received message from ${channel}: ${message}`);
+    let data;
+    try {
+      data = JSON.parse(message);
+    } catch (error) {
+      logger.error({ err: error, channel }, "failed to parse ticker update message");
+      return;
+    }
+
+    logger.debug({
+      channel,
+      stockCount: Array.isArray(data.stocks) ? data.stocks.length : 0,
+      usFuturesOpen: data.us_futures_open,
+      cryptoOpen: data.crypto_open
+    }, "received ticker update message");
+
     await pingHeartbeat();
-    const data = JSON.parse(message);
     if (!Array.isArray(data.stocks)) return;
     for (const info of data.stocks) {
       const mappedTicker = tickers.find((ticker) => ticker.bot.symbolName === info.symbol);
