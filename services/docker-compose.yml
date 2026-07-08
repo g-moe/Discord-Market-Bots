@@ -1,4 +1,11 @@
 name: discord-bot-tickers
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "100m"
+    max-file: "3"
+
 services:
   redis:
     image: redis:latest
@@ -6,6 +13,7 @@ services:
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     restart: always
+    logging: *default-logging
     networks:
       app-network:
         ipv4_address: 172.20.0.2
@@ -26,6 +34,7 @@ services:
     volumes:
       - ./server/logs:/app/logs
     restart: always
+    logging: *default-logging
     networks:
       app-network:
         ipv4_address: 172.20.0.3
@@ -48,6 +57,7 @@ services:
     volumes:
       - ./tickers/logs:/app/logs
     restart: always
+    logging: *default-logging
     networks:
       app-network:
         ipv4_address: 172.20.0.4
@@ -63,6 +73,7 @@ services:
     volumes:
       - ./market-wiz/logs:/app/logs
     restart: always
+    logging: *default-logging
     platform: linux/amd64
     depends_on:
       redis:
@@ -77,6 +88,7 @@ services:
     environment:
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     restart: always
+    logging: *default-logging
     profiles:
       - ${ENVIRONMENT:-prod} 
     networks:
@@ -91,5 +103,4 @@ networks:
       config:
         - subnet: 172.20.0.0/16
           gateway: 172.20.0.1
-
 
