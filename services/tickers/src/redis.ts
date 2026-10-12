@@ -4,6 +4,7 @@ import { updateDiscordBot } from "./updates";
 import logger from "./logger";
 import { Bot } from "./types";
 import { pingHeartbeat } from "./pingStatus";
+import { tickerSymbolsMatch } from "./symbols";
 
 export async function botController(tickers: { client: Client, bot: Bot }[]) {
   const redisClient = createClient({
@@ -35,7 +36,7 @@ export async function botController(tickers: { client: Client, bot: Bot }[]) {
     if (!Array.isArray(data.stocks)) return;
     let updatedCount = 0;
     for (const info of data.stocks) {
-      const mappedTicker = tickers.find((ticker) => ticker.bot.symbolName === info.symbol);
+      const mappedTicker = tickers.find((ticker) => tickerSymbolsMatch(ticker.bot.symbolName, info.symbol));
       if (mappedTicker) {
         await updateDiscordBot(mappedTicker.client, mappedTicker.bot, info);
         updatedCount++;
