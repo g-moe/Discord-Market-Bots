@@ -21,9 +21,24 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  check-market-wiz:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/market-wiz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: services/market-wiz/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: check-tickers
+    needs: [check-tickers, check-market-wiz]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy discord-market-bots
