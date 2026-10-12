@@ -25,29 +25,31 @@ bot without the Message Content intent.
 Source: [Discord Message Content intent](https://docs.discord.com/developers/events/gateway#message-content-intent).
 The documentation lists this exception: "Content in which the app is mentioned".
 
-### 7. Deploy the intent change for all tickers
+### 7. Deploy both bot services together
 
-1. Run `npm run test:tickers` from the repository root.
+1. Run `npm test` from the repository root. Confirm that Market Wizard has
+   Message Content access before the deployment.
 
 2. Transfer the code to the deployment host through the usual release process.
    Keep the host's existing bot configuration and environment values.
 
-3. From `services/`, build the shared ticker image:
+3. From `services/`, build all application images:
 
    ```bash
-   docker compose build tickers
+   docker compose build
    ```
 
-4. Replace the shared ticker container. This starts all configured ticker bots:
+4. Deploy the application stack together:
 
    ```bash
-   docker compose up -d --no-deps tickers
-   docker compose logs --since 5m tickers
+   docker compose up -d
+   docker compose logs --since 5m tickers market-wiz
    ```
 
 5. Check that each configured bot logs in. Check price, percentage activity,
    status, role color, and mention replies in Discord. Check both regular
-   mentions and nickname mentions.
+   mentions and nickname mentions. Also check Market Wizard's slash commands
+   and the Financial Juice news relay.
 
 6. After these checks pass, turn off Presence, Server Members, and Message
    Content intents in each ticker application's Developer Portal Bot settings.
@@ -58,9 +60,24 @@ The documentation lists this exception: "Content in which the app is mentioned".
    that the bots can connect with the new portal settings:
 
    ```bash
-   docker compose restart tickers
-   docker compose logs --since 5m tickers
+   docker compose restart tickers market-wiz
+   docker compose logs --since 5m tickers market-wiz
    ```
 
 If an older image is needed for recovery, enable its required Message Content
 intent before starting that image. The older client requests that intent.
+
+### 8. Market Wizard intents
+
+Market Wizard uses `Guilds`, `GuildMessages`, and `MessageContent`. It reads
+Financial Juice messages from its configured source channel and sends news
+embeds to the news channel. It also sends breaking news to the trading chat.
+This feature requires Message Content access. Market Wizard does not need
+Presence or Server Members intents.
+
+Do not turn off Market Wizard's Message Content intent during ticker cleanup.
+The news reader is always registered. There is no environment flag that
+changes its intent requirements.
+
+Run `npm test` from the repository root to build and test both bot services.
+The release workflow also builds both Docker images before deployment.

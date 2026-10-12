@@ -11,7 +11,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    // GatewayIntentBits.MessageContent - add back when discord approves
+    GatewayIntentBits.MessageContent,
   ]
 });
 
@@ -65,12 +65,19 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   }
 });
 
-if (config.ENABLE_MESSAGE_CONTENT_INTENT) {
-  client.on(Events.MessageCreate, async (message: Message) => {
-    if (message.channelId === "1248771982980284436" && message.author.id === "1240686103959179274") {
-      await newsHeadline(message);
-    }
-  });
-}
+client.on(Events.MessageCreate, async (message: Message) => {
+  if (message.channelId !== "1248771982980284436" || message.author.id !== "1240686103959179274") return;
+
+  if (!message.content.trim()) {
+    logger.warn({ messageId: message.id }, "news source message has no content");
+    return;
+  }
+
+  try {
+    await newsHeadline(message);
+  } catch (error) {
+    logger.error({ err: error }, "news headline relay failed");
+  }
+});
 
 client.login(config.DISCORD_TOKEN);
