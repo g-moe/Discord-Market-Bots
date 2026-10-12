@@ -31,7 +31,7 @@ export async function createTickerMentionMsg(client: Client, bot: Bot) {
     .setEmoji("📈")
     .setURL(tradingviewUrl);
 
-  const row = new ActionRowBuilder()
+  const row = new ActionRowBuilder<ButtonBuilder>()
     .addComponents(openChartButton);
 
   return { embed, row }

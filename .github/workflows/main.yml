@@ -1,10 +1,29 @@
 name: Build & Deploy
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
 jobs:
+  check-tickers:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/tickers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: services/tickers/package-lock.json
+      - run: npm ci
+      - run: npm test
+
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check-tickers
     runs-on: ubuntu-latest
     steps:
       - name: Deploy discord-market-bots

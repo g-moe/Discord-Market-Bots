@@ -4,7 +4,6 @@ import { botController } from "./redis";
 import { Bot, BotConfig } from "./types";
 import { createTickerMentionMsg } from "./messages";
 import logger from "./logger";
-// import { extendTradingViewAlert } from "./extendData";
 
 // Read in bots
 const botConfig: BotConfig = JSON.parse(fs.readFileSync("./bots.json", "utf8"));
@@ -13,13 +12,11 @@ if (!botConfig.bots || botConfig.bots.length === 0) {
 }
 
 // Initialize the bots
-// const discordClients: Client[] = [];
 const tickers: { client: Client, bot: Bot }[] = [];
 botConfig.bots.forEach(bot => {
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
-      GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildMessages
     ]
   });
@@ -29,12 +26,16 @@ botConfig.bots.forEach(bot => {
   client.on(Events.Warn, m => logger.warn(m));
   client.on(Events.Error, m => logger.error(m));
 
-  client.on("messageCreate", async (message) => {
-    if (message.content.includes(`<@${client.user?.id}>`)) {
+  client.on(Events.MessageCreate, async (message) => {
+    // Direct mentions remain available without the Message Content intent.
+    if (!client.user || !message.mentions.users.has(client.user.id)) return;
+
+    try {
       const { embed, row } = await createTickerMentionMsg(client, bot);
-      message.reply({ embeds: [embed], components: [row as any] })
-        .then(() => logger.info(`Replied to message "${message.content}"`))
-        .catch(logger.error);
+      await message.reply({ embeds: [embed], components: [row] });
+      logger.info({ messageId: message.id, applicationId: bot.id }, "Replied to ticker mention");
+    } catch (error) {
+      logger.error(error);
     }
   });
 

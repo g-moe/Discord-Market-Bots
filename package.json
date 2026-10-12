@@ -2,6 +2,8 @@
   "name": "discord-market-bots",
   "private": true,
   "scripts": {
+    "build:tickers": "npm --prefix services/tickers run build",
+    "test:tickers": "npm --prefix services/tickers test",
     "build": "npm run build:market-wiz",
     "build:market-wiz": "npm --prefix services/market-wiz run build",
     "build:public-site": "npm --prefix public-site run build",
