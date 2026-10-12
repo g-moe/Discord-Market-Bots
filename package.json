@@ -4,11 +4,11 @@
   "scripts": {
     "build:tickers": "npm --prefix services/tickers run build",
     "test:tickers": "npm --prefix services/tickers test",
-    "build": "npm run build:market-wiz",
+    "build": "npm run build:tickers && npm run build:market-wiz",
     "build:market-wiz": "npm --prefix services/market-wiz run build",
     "build:public-site": "npm --prefix public-site run build",
     "lint": "npm --prefix services/market-wiz exec eslint -- services/market-wiz/src --ext .ts --fix",
-    "test": "npm run test:market-wiz",
+    "test": "npm run test:tickers && npm run test:market-wiz",
     "test:market-wiz": "npm --prefix services/market-wiz test",
     "tsc": "npm run typecheck",
     "typecheck": "npm run typecheck:market-wiz",

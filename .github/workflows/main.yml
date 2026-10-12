@@ -36,9 +36,18 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  build-bot-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [tickers, marketwiz]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --file services/dockerfile.${{ matrix.service }} services
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check-tickers, check-market-wiz]
+    needs: [check-tickers, check-market-wiz, build-bot-images]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy discord-market-bots

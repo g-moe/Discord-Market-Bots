@@ -64,3 +64,18 @@ The documentation lists this exception: "Content in which the app is mentioned".
 
 If an older image is needed for recovery, enable its required Message Content
 intent before starting that image. The older client requests that intent.
+
+### 8. Market Wizard intents
+
+Market Wizard uses `Guilds`, `GuildMessages`, and `MessageContent`. It reads
+Financial Juice messages from its configured source channel and sends news
+embeds to the news channel. It also sends breaking news to the trading chat.
+This feature requires Message Content access. Market Wizard does not need
+Presence or Server Members intents.
+
+Do not turn off Market Wizard's Message Content intent during ticker cleanup.
+The news reader is always registered. There is no environment flag that
+changes its intent requirements.
+
+Run `npm test` from the repository root to build and test both bot services.
+The release workflow also builds both Docker images before deployment.
