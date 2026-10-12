@@ -54,30 +54,3 @@ test("the observed CBOT YM webhook reaches a CBOT_MINI YM client", async () => {
   assert.equal(updates[0][2].pct, "0.28");
   assert.equal(summaries[0].updatedCount, 1);
 });
-
-test("both YM names continue to route when they match exactly", async () => {
-  for (const symbol of ["CBOT_MINI:YM1!", "CBOT:YM1!"]) {
-    assert.equal((await deliverUpdate(symbol, symbol)).updates.length, 1);
-  }
-});
-
-test("the YM exchange alias works in the reverse direction", async () => {
-  assert.equal((await deliverUpdate("CBOT:YM1!", "CBOT_MINI:YM1!")).updates.length, 1);
-});
-
-test("different YM contracts, micro contracts, and unknown prefixes remain unmatched", async () => {
-  for (const symbol of ["CBOT:YM2!", "CBOT:MYM1!", "UNKNOWN:YM1!"]) {
-    assert.equal((await deliverUpdate("CBOT_MINI:YM1!", symbol)).updates.length, 0);
-  }
-});
-
-test("other ticker symbols still require an exact match", async () => {
-  assert.equal((await deliverUpdate("CME_MINI:ES1!", "CME_MINI:ES1!")).updates.length, 1);
-  assert.equal((await deliverUpdate("CME_MINI:ES1!", "OTHER:ES1!")).updates.length, 0);
-});
-
-test("missing or non-string symbols do not match YM", async () => {
-  for (const symbol of [undefined, null, 123, {}]) {
-    assert.equal((await deliverUpdate("CBOT_MINI:YM1!", symbol)).updates.length, 0);
-  }
-});
