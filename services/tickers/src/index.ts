@@ -28,7 +28,7 @@ botConfig.bots.forEach(bot => {
 
   client.on(Events.MessageCreate, async (message) => {
     // Direct mentions remain available without the Message Content intent.
-    if (!client.user || !message.mentions.users.has(client.user.id)) return;
+    if (!client.user || !message.mentions.parsedUsers.has(client.user.id)) return;
 
     try {
       const { embed, row } = await createTickerMentionMsg(client, bot);

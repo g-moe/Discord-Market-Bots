@@ -69,7 +69,7 @@ function startTickers() {
   return { clients, logs, logger };
 }
 
-function makeMessage(client, content, mentioned = true) {
+function makeMessage(client, content, { mentioned = true, replyToTicker = false } = {}) {
   const message = new discord.Message(client, {
     id: "200000000000000000",
     channel_id: "300000000000000000",
@@ -80,6 +80,15 @@ function makeMessage(client, content, mentioned = true) {
     mention_everyone: false,
     attachments: [],
     embeds: [],
+    referenced_message: replyToTicker ? {
+      id: "200000000000000001",
+      channel_id: "300000000000000000",
+      author: { id: client.user.id, username: "ticker", discriminator: "0", bot: true },
+      content: "Ticker data",
+      mentions: [],
+      attachments: [],
+      embeds: [],
+    } : undefined,
   });
   message.replies = [];
   message.reply = async payload => message.replies.push(payload);
@@ -125,9 +134,35 @@ test("tickers ignore messages with empty content and no direct mention", async (
   const { clients } = startTickers();
 
   for (const client of clients) {
-    const message = makeMessage(client, "", false);
+    const message = makeMessage(client, "", { mentioned: false });
     await deliver(client, message);
     assert.equal(message.replies.length, 0);
+  }
+});
+
+test("tickers ignore a reply ping without an explicit user mention", async () => {
+  const { clients } = startTickers();
+
+  for (const client of clients) {
+    // A reply ping puts the recipient in API mentions without adding mention text.
+    const message = makeMessage(client, "Thanks", { replyToTicker: true });
+    assert.equal(message.mentions.users.has(client.user.id), true);
+    assert.equal(message.mentions.parsedUsers.has(client.user.id), false);
+
+    await deliver(client, message);
+    assert.equal(message.replies.length, 0);
+  }
+});
+
+test("explicit regular and nickname mentions still work in replies", async () => {
+  const { clients } = startTickers();
+
+  for (const client of clients) {
+    for (const content of [`<@${client.user.id}>`, `<@!${client.user.id}>`]) {
+      const message = makeMessage(client, content, { replyToTicker: true });
+      await deliver(client, message);
+      assert.equal(message.replies.length, 1);
+    }
   }
 });
 
