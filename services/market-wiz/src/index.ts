@@ -11,7 +11,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    // GatewayIntentBits.MessageContent - add back when discord approves
+    ...(config.ENABLE_MESSAGE_CONTENT_INTENT ? [GatewayIntentBits.MessageContent] : []),
   ]
 });
 

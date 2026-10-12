@@ -70,6 +70,7 @@ services:
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - ENABLE_MESSAGE_CONTENT_INTENT=${ENABLE_MESSAGE_CONTENT_INTENT:-false}
     volumes:
       - ./market-wiz/logs:/app/logs
     restart: always

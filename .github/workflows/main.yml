@@ -34,7 +34,7 @@ jobs:
           cache: npm
           cache-dependency-path: services/market-wiz/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm test
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
