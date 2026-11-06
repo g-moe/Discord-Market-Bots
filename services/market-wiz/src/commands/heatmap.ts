@@ -1,5 +1,5 @@
 import { APIApplicationCommandOptionChoice, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import puppeteer, { Browser } from "puppeteer";
+import { Browser, launch } from "puppeteer";
 import logger from "../utils/logger";
 
 const marketOptions = {
@@ -89,7 +89,7 @@ function createHeatmapUrl({ market, timeframe }: { market: string; timeframe: st
  * await takeScreenshot(createHeatmapUrl({ market: "DAX", timeframe: "Perf.W" })); // "screenshot.png"
  */
 async function takeScreenshot(url: string) {
-  const FULLSCREEN_BUTTON_SELECTOR = "[data-name=\"heatmap-top-bar_fullscreen\"]";
+  const FULLSCREEN_BUTTON_SELECTOR = "[data-qa-id=\"heatmap-top-bar_fullscreen\"]";
   const SCREENSHOT_PATH = "screenshot.png";
 
   const browser = await getBrowser();
@@ -116,7 +116,7 @@ async function getBrowser(): Promise<Browser> {
   const CHROME_PATH = "/usr/bin/google-chrome";
   const VIEWPORT = { width: 1920, height: 1080 };
 
-  browser ??= await puppeteer.launch({
+  browser ??= await launch({
     executablePath: CHROME_PATH,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     defaultViewport: VIEWPORT
