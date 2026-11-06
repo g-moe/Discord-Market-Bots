@@ -19,6 +19,6 @@ export async function pingHeartbeat(): Promise<void> {
 
     logger.debug("Uptime ping sent successfully");
   } catch (error) {
-    logger.error("Failed to send uptime ping:", error);
+    logger.error({ err: error }, "failed to send uptime ping");
   }
 }

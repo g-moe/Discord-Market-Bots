@@ -21,12 +21,12 @@ export function startWebhookServer(params: {
   const { onTickerUpdate, port, secret } = params;
 
   const server = http.createServer(async (req, res) => {
-    if (req.url !== WEBHOOK_PATH) return reply({ res, status: 404, text: "Not found" });
-    if (req.method !== "POST") return reply({ res, status: 405, text: "Method not allowed" });
+    if (req.url !== WEBHOOK_PATH) return reject({ req, res, status: 404, reason: "Not found" });
+    if (req.method !== "POST") return reject({ req, res, status: 405, reason: "Method not allowed" });
 
     const data = await readJson(req);
-    if (data === undefined) return reply({ res, status: 400, text: "Invalid JSON" });
-    if (data.Authorization !== secret) return reply({ res, status: 401, text: "Unauthorized" });
+    if (data === undefined) return reject({ req, res, status: 400, reason: "Invalid JSON" });
+    if (data.Authorization !== secret) return reject({ req, res, status: 401, reason: "Unauthorized" });
 
     reply({ res, status: 200, text: "Webhook received successfully" });
     onTickerUpdate(data).catch(error => logger.error({ err: error }, "ticker update failed"));
@@ -57,6 +57,19 @@ async function readJson(req: http.IncomingMessage): Promise<Record<string, unkno
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Log a rejected webhook request, then reply with its status, so a gap in ticker updates shows whether requests are arriving.
+ *
+ * @example
+ * reject({ req, res, status: 401, reason: "Unauthorized" });
+ */
+function reject(params: { req: http.IncomingMessage; res: http.ServerResponse; status: number; reason: string }) {
+  const { req, res, status, reason } = params;
+
+  logger.warn({ method: req.method, path: req.url, status }, `rejected webhook request: ${reason}`);
+  reply({ res, status, text: reason });
 }
 
 /**

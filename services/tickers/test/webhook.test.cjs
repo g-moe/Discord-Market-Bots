@@ -4,7 +4,6 @@ const { test } = require("node:test");
 const { loadModule } = require("./load-module.cjs");
 
 const SECRET = "test-secret";
-const SILENT_LOGGER = Object.fromEntries(["info", "debug", "warn", "error"].map(level => [level, () => {}]));
 
 /**
  * Start the compiled webhook server on a free port; `received` collects every update handed to `onTickerUpdate`.
@@ -13,8 +12,12 @@ const SILENT_LOGGER = Object.fromEntries(["info", "debug", "warn", "error"].map(
  * const { post, received, close } = await startServer();
  */
 async function startServer() {
+  const logs = [];
+  const logger = Object.fromEntries(
+    ["info", "debug", "warn", "error"].map(level => [level, (...args) => logs.push({ level, args })])
+  );
   const { startWebhookServer, WEBHOOK_PATH } = loadModule("webhook", {
-    "./logger": { __esModule: true, default: SILENT_LOGGER },
+    "./logger": { __esModule: true, default: logger },
   }, { JSON });
 
   const received = [];
@@ -25,6 +28,7 @@ async function startServer() {
   return {
     WEBHOOK_PATH,
     close: () => new Promise(resolve => server.close(resolve)),
+    logs,
     post: (path, body) => fetch(`${baseUrl}${path}`, { method: "POST", body, headers: { "Content-Type": "application/json" } }),
     received,
     request: (path, init) => fetch(`${baseUrl}${path}`, init),
@@ -44,8 +48,8 @@ test("an authorized TradingView update is accepted and handed to the ticker upda
   assert.deepEqual(received, [update]);
 });
 
-test("a wrong secret, bad JSON, wrong path, or wrong method is rejected without an update", async () => {
-  const { WEBHOOK_PATH, close, post, received, request } = await startServer();
+test("a wrong secret, bad JSON, wrong path, or wrong method is rejected and logged without an update", async () => {
+  const { WEBHOOK_PATH, close, logs, post, received, request } = await startServer();
 
   const statuses = [
     (await post(WEBHOOK_PATH, JSON.stringify({ Authorization: "wrong", stocks: [] }))).status,
@@ -58,4 +62,5 @@ test("a wrong secret, bad JSON, wrong path, or wrong method is rejected without 
 
   assert.deepEqual(statuses, [401, 401, 400, 404, 405]);
   assert.deepEqual(received, []);
+  assert.deepEqual(logs.filter(log => log.level === "warn").map(log => log.args[0].status), statuses);
 });

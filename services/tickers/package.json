@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "discord.js": "14.27.0",
-    "pino": "8.21.0"
+    "pino": "10.4.0",
+    "pino-roll": "4.0.0"
   }
 }
