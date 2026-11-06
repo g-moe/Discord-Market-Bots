@@ -1,0 +1,10 @@
+{
+  "bots": [
+    {
+      "token": "discord-bot-token",
+      "id": "discord-application-id",
+      "symbolName": "ES",
+      "symbolNick": "ES"
+    }
+  ]
+}

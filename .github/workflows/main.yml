@@ -5,17 +5,41 @@ on:
   push:
     branches: [main]
 
+# Chrome comes from apt in the market-wiz image; Puppeteer's own download is never used
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+
 jobs:
+  check-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            services/tickers/package-lock.json
+            services/market-wiz/package-lock.json
+      # Root holds the lint toolchain and repo-wide tests; each service provides its own types for typecheck
+      - run: npm ci
+      - run: npm ci --prefix services/tickers
+      - run: npm ci --prefix services/market-wiz
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:repo
+
   check-tickers:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: services/tickers
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: 18
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: services/tickers/package-lock.json
       - run: npm ci
@@ -27,10 +51,10 @@ jobs:
       run:
         working-directory: services/market-wiz
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: 18
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: services/market-wiz/package-lock.json
       - run: npm ci
@@ -42,12 +66,12 @@ jobs:
       matrix:
         service: [tickers, marketwiz]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
       - run: docker build --file services/dockerfile.${{ matrix.service }} services
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check-tickers, check-market-wiz, build-bot-images]
+    needs: [check-repo, check-tickers, check-market-wiz, build-bot-images]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy discord-market-bots
@@ -60,7 +84,7 @@ jobs:
             set -euo pipefail
             cd code/Discord-Market-Bots/services
             git pull
-            docker compose up --build -d
+            docker compose --profile prod up --build -d
             docker image prune -af
             docker builder prune -af
             echo 'Deployment successful'

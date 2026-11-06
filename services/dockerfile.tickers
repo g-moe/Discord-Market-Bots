@@ -1,10 +1,11 @@
-FROM node:18-slim
+FROM node:24.22.2-bookworm-slim
 
 WORKDIR /app
 
-COPY ./tickers/package*.json ./
+COPY ./tickers/package*.json ./tickers/.npmrc ./
 RUN npm ci
 
+COPY ./tsconfig.base.json /tsconfig.base.json
 COPY ./tickers .
 
 RUN npm run build \

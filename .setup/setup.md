@@ -1,58 +1,57 @@
-## Discord Ticker 🤖🤖🤖 Setup
+## Discord Market Bots Setup
 
 ### Requirements
 
-- Linux VPS Server (I use Linode)
-  - [My VPS Provider](https://www.linode.com/lp/refer/?r=3eabea16dddc74fdc11ae5d0a73cd919c1ed1ae0)
-- Docker
-- Discord Server
-- Discord Bot
+- Node `24.22.2` (pinned in `.nvmrc`; `npm` refuses other versions)
+- Docker with Compose
+- A Discord server and one Discord application per bot
 
 ---
 
-### 1. Clone Git Repo
+### Local development
 
 ```bash
-git clone https://github.com/g-moe/Discord-Ticker-Bots
-cd Discord-Ticker-Bots/services
+git clone https://github.com/g-moe/Discord-Market-Bots
+cd Discord-Market-Bots
+nvm use
+npm run setup        # npm ci in the root, both services, and public-site
+npm run lint
+npm run typecheck
+npm test
 ```
 
----
-
-### 2. Set .env vars and bots.json info
+Run Market Wizard locally (reads `services/.env`):
 
 ```bash
-sudo nano ./services/.env
-sudo nano ./tickers/bots.json
-```
----
-
-### 3. Run Docker Compose
-
-```bash
-docker compose up --build -d
+npm --prefix services/market-wiz run dev
 ```
 
 ---
 
-### 4. Edit nginx config for data
+### Server deployment
 
-```bash
-sudo nano /etc/nginx/sites-available/app.conf
-```
+1. Clone the repo on the server:
 
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
+   ```bash
+   git clone https://github.com/g-moe/Discord-Market-Bots
+   cd Discord-Market-Bots/services
+   ```
 
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
+2. Create the env file and ticker bot list from the examples:
+
+   ```bash
+   cp .env.example .env
+   cp tickers/bots.example.json tickers/bots.json
+   nano .env
+   nano tickers/bots.json
+   ```
+
+   `bots.json` holds one entry per ticker bot: its bot `token`, its application `id`, the TradingView `symbolName`, and the `symbolNick` shown in its nickname.
+
+3. Start the stack. The `prod` profile also starts the Cloudflare tunnel that exposes the webhook server:
+
+   ```bash
+   docker compose --profile prod up --build -d
+   ```
+
+After the first deploy, pushes to `main` deploy automatically through `.github/workflows/main.yml`.

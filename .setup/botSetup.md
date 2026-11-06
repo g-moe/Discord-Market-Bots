@@ -41,7 +41,7 @@ The documentation lists this exception: "Content in which the app is mentioned".
 4. Deploy the application stack together:
 
    ```bash
-   docker compose up -d
+   docker compose --profile prod up -d
    docker compose logs --since 5m tickers market-wiz
    ```
 
