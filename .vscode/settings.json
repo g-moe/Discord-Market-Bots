@@ -1,5 +1,4 @@
 {
-  "pylint.cwd": "${workspaceFolder}/services/server",
   "eslint.validate": [
     "javascript",
     "javascriptreact",

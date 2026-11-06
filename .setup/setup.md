@@ -48,7 +48,7 @@ npm --prefix services/market-wiz run dev
 
    `bots.json` holds one entry per ticker bot: its bot `token`, its application `id`, the TradingView `symbolName`, and the `symbolNick` shown in its nickname.
 
-3. Start the stack. The `prod` profile also starts the Cloudflare tunnel that exposes the webhook server:
+3. Start the stack. The `prod` profile also starts the Cloudflare tunnel that forwards TradingView webhooks to tickers:
 
    ```bash
    docker compose --profile prod up --build -d

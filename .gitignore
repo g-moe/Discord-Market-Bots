@@ -1,10 +1,6 @@
-# server
-.venv/
 logs/
 *.env
 *.log
-*__pycache__
-
 
 # bots
 node_modules/

@@ -42,8 +42,10 @@ function startTickers() {
   loadModule("index", {
     fs: { readFileSync: () => JSON.stringify({ bots }) },
     "discord.js": { ...discord, Client: TestClient },
-    "./redis": { botController: async () => {} },
+    "./webhook": { __esModule: true, startWebhookServer: () => {}, WEBHOOK_PORT: 0 },
     "./logger": { __esModule: true, default: logger },
+  }, {
+    process: { env: { WEBHOOK_SECRET: "test-secret" } },
   });
 
   return { clients, logs, logger };

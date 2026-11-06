@@ -84,7 +84,7 @@ jobs:
             set -euo pipefail
             cd code/Discord-Market-Bots/services
             git pull
-            docker compose --profile prod up --build -d
+            docker compose --profile prod up --build -d --remove-orphans
             docker image prune -af
             docker builder prune -af
             echo 'Deployment successful'

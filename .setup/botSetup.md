@@ -10,7 +10,7 @@
 
 ### 4. Create Tradingview Indicator
 
-### 5. Set alert in Tradingview & set webhook URL to server URL
+### 5. Set alert in TradingView & set the webhook URL to the tunnel hostname
 
 ### 6. Gateway intents
 
