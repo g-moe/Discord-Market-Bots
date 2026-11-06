@@ -40,8 +40,11 @@ test("every Node Docker image uses the .nvmrc version", () => {
   }
 });
 
-test("no other .nvmrc overrides the root version", () => {
+// Hosts that build from a subfolder (Cloudflare Pages builds public-site/) only see that folder's .nvmrc.
+test("every other .nvmrc matches the root version", () => {
   for (const dir of PACKAGE_DIRS.filter(dir => dir !== ".")) {
-    assert.equal(exists(dir, ".nvmrc"), false, `${dir}/.nvmrc`);
+    if (!exists(dir, ".nvmrc")) continue;
+
+    assert.equal(fs.readFileSync(path.join(ROOT, dir, ".nvmrc"), "utf8").trim(), nvmrc, `${dir}/.nvmrc`);
   }
 });
