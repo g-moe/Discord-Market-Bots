@@ -1,10 +1,7 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const { createRequire } = require("node:module");
 const { test } = require("node:test");
-const vm = require("node:vm");
 const discord = require("discord.js");
+const { loadModule } = require("./load-module.cjs");
 
 const bots = ["BTC", "ES", "NQ", "VIX", "DXY", "RTY", "YM", "UB", "GC", "CL"].map(
   (symbol, index) => ({
@@ -14,23 +11,6 @@ const bots = ["BTC", "ES", "NQ", "VIX", "DXY", "RTY", "YM", "UB", "GC", "CL"].ma
     symbolNick: symbol,
   })
 );
-
-// Load the compiled service with local substitutes for network and storage access.
-function loadModule(name, substitutes) {
-  const filename = path.join(__dirname, "../dist", `${name}.js`);
-  const localRequire = createRequire(filename);
-  const module = { exports: {} };
-
-  vm.runInNewContext(fs.readFileSync(filename, "utf8"), {
-    exports: module.exports,
-    module,
-    require: name => substitutes[name] ?? localRequire(name),
-    console,
-    setTimeout,
-  }, { filename });
-
-  return module.exports;
-}
 
 function startTickers() {
   const clients = [];
@@ -62,8 +42,10 @@ function startTickers() {
   loadModule("index", {
     fs: { readFileSync: () => JSON.stringify({ bots }) },
     "discord.js": { ...discord, Client: TestClient },
-    "./redis": { botController: async () => {} },
-    "./logger": { default: logger },
+    "./webhook": { __esModule: true, startWebhookServer: () => {}, WEBHOOK_PORT: 0 },
+    "./logger": { __esModule: true, default: logger },
+  }, {
+    process: { env: { WEBHOOK_SECRET: "test-secret" } },
   });
 
   return { clients, logs, logger };
@@ -183,9 +165,15 @@ test("reply and application-fetch failures are logged without an unhandled rejec
 
 test("all ten tickers still send positive and negative status updates without privileged intents", async () => {
   const { clients, logger } = startTickers();
+  const patched = [];
   const { updateDiscordBot } = loadModule("updates", {
-    axios: { default: { patch: async () => {} }, isAxiosError: () => false },
-    "./logger": { default: logger },
+    "./logger": { __esModule: true, default: logger },
+  }, {
+    AbortSignal,
+    fetch: async (url, init) => {
+      patched.push({ url, method: init.method, body: JSON.parse(init.body) });
+      return new Response(null, { status: 200 });
+    },
   });
 
   for (const [index, client] of clients.entries()) {
@@ -197,6 +185,13 @@ test("all ten tickers still send positive and negative status updates without pr
       assert.equal(packet.d.status, status);
       assert.equal(packet.d.activities[0].type, discord.ActivityType.Custom);
       assert.equal(packet.d.activities[0].state, activity);
+
+      const patch = patched.at(-1);
+      assert.equal(patch.url, `https://discord.com/api/v9/applications/${bots[index].id}`);
+      assert.equal(patch.method, "PATCH");
+      assert.equal(typeof patch.body.description, "string");
     }
   }
+
+  assert.equal(patched.length, clients.length * 2);
 });

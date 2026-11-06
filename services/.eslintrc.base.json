@@ -1,0 +1,87 @@
+{
+  "env": {
+    "es6": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": true,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "import",
+    "sort-exports"
+  ],
+  "rules": {
+    "quotes": [
+      "error",
+      "double"
+    ],
+    "import/no-unresolved": 0,
+    "import/order": [
+      "error"
+    ],
+    "indent": [
+      "error",
+      2
+    ],
+    "require-jsdoc": 0,
+    "@typescript-eslint/interface-name-prefix": "off",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "max-len": [
+      "warn",
+      {
+        "code": 200,
+        "tabWidth": 2,
+        "ignoreComments": true,
+        "ignoreTrailingComments": true,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true,
+        "ignoreRegExpLiterals": true
+      }
+    ],
+    "class-methods-use-this": "off",
+    "@typescript-eslint/strict-boolean-expressions": "off",
+    "@typescript-eslint/camelcase": "off",
+    "@typescript-eslint/prefer-optional-chain": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "no-console": 1,
+    "no-param-reassign": "error",
+    "eol-last": "error",
+    "padded-blocks": [
+      "error",
+      "never"
+    ],
+    "no-multiple-empty-lines": [
+      "error",
+      {
+        "max": 1,
+        "maxEOF": 1
+      }
+    ],
+    "sort-imports": [
+      "error",
+      {
+        "ignoreCase": true,
+        "ignoreDeclarationSort": true
+      }
+    ],
+    "sort-exports/sort-exports": [
+      "error",
+      {
+        "sortDir": "asc"
+      }
+    ]
+  }
+}

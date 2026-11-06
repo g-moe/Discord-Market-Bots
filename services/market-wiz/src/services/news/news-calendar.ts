@@ -1,53 +1,54 @@
 import { Client } from "discord.js";
-
-// import { fetchNewsData } from "./news-fetch";
 import { createNewsEmbed } from "../../commands/news";
+import { GUILD_ID, NEWS_CHANNEL_ID, TRADING_CHANNEL_ID } from "../../utils/discord-ids";
 import logger from "../../utils/logger";
+import { MINUTE_MS } from "../../utils/time";
+import { countryOptions, importanceOptions, timeframeOptions } from "./news-fetch";
 
+/**
+ * Post the US events starting in the next 5 minutes to the news channel and the trading chat.
+ * Posts nothing when there are no events; the caller handles a rejected promise (Discord failure).
+ *
+ * @example
+ * await checkNewsCalendar(client);
+ */
 export async function checkNewsCalendar(client: Client) {
-  const result = await createNewsEmbed(true, { 
-    country: "USA",
-    timeframe: "Next 5 minutes",
-    importance: "🔴🟠🟡"
+  const result = await createNewsEmbed({
+    params: { country: countryOptions.US, timeframe: timeframeOptions["5"], importance: importanceOptions.All },
+    scheduled: true,
   });
-
   if (!result) return;
 
-  // news channel
-  const guild = await client.guilds.fetch("668989780398440466");
-  const newsChannel = await guild.channels.fetch("1214195778088865802");
-  if (newsChannel && newsChannel.isTextBased()) {
-    await newsChannel.send({ embeds: [result.embed], components: [result.row as any] });
-  }
-
-  // trading chat
-  const tradingChannel = await guild.channels.fetch("668989780398440470");
-  if (tradingChannel && tradingChannel.isTextBased()) {
-    await tradingChannel.send({ embeds: [result.embed], components: [result.row as any] });
+  const guild = await client.guilds.fetch(GUILD_ID);
+  for (const channelId of [NEWS_CHANNEL_ID, TRADING_CHANNEL_ID]) {
+    const channel = await guild.channels.fetch(channelId);
+    if (channel && channel.isTextBased()) {
+      await channel.send({ embeds: [result.embed], components: [result.row] });
+    }
   }
 }
 
-async function runNewsCalendarCheck(client: Client) {
-  try {
-    await checkNewsCalendar(client);
-  } catch (error) {
-    logger.error({ err: error }, "scheduled news calendar check failed");
-  }
-}
-
+/**
+ * Run `checkNewsCalendar` on every 5-minute wall-clock boundary (:00, :05, ...), starting at the next one.
+ * Failures are logged, never thrown.
+ *
+ * @example
+ * setupNewsCalendar(client);
+ */
 export function setupNewsCalendar(client: Client) {
-  const INTERVAL_MINUTES = 5;   
-  const MS_IN_MINUTE = 60000;
-  const RUNTIME_INTERVAL = INTERVAL_MINUTES * MS_IN_MINUTE;
+  const CALENDAR_INTERVAL_MS = 5 * MINUTE_MS;
 
-  const now = new Date();
-  const delay = RUNTIME_INTERVAL - ((now.getMinutes() % INTERVAL_MINUTES) * MS_IN_MINUTE + now.getSeconds() * 1000 + now.getMilliseconds());
+  const runCheck = async () => {
+    try {
+      await checkNewsCalendar(client);
+    } catch (error) {
+      logger.error({ err: error }, "scheduled news calendar check failed");
+    }
+  };
 
+  const delayToNextBoundary = CALENDAR_INTERVAL_MS - (Date.now() % CALENDAR_INTERVAL_MS);
   setTimeout(() => {
-    void runNewsCalendarCheck(client);
-    setInterval(() => {
-      void runNewsCalendarCheck(client);
-    }, RUNTIME_INTERVAL);
-  }, delay);
+    void runCheck();
+    setInterval(() => void runCheck(), CALENDAR_INTERVAL_MS);
+  }, delayToNextBoundary);
 }
-

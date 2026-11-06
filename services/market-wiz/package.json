@@ -2,32 +2,31 @@
   "name": "bots",
   "version": "1.0.0",
   "description": "",
-  "main": "bot.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "npm run build && node --test test/*.test.cjs",
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts"
+    "dev": "nodemon --watch src --ext ts --exec \"tsc && node --env-file-if-exists=../.env dist/index.js\"",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": "24.22.2"
+  },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.1.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-prettier": "^5.1.3",
-    "eslint-plugin-sort-exports": "^0.9.1",
-    "nodemon": "^3.1.0",
-    "typescript": "^5.3.3"
+    "@types/node": "24.19.2",
+    "nodemon": "3.1.0",
+    "typescript": "5.9.3"
   },
   "dependencies": {
-    "axios": "^1.6.7",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5",
-    "pino": "^8.19.0",
-    "puppeteer": "^22.3.0",
-    "redis": "^4.6.13"
+    "discord.js": "14.27.0",
+    "node-html-parser": "9.0.6",
+    "pino": "10.4.0",
+    "pino-roll": "4.0.0",
+    "puppeteer": "25.16.0",
+    "zod": "4.6.7"
   }
 }

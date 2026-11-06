@@ -1,13 +1,10 @@
-# server
-.venv/
 logs/
 *.env
 *.log
-*__pycache__
-
 
 # bots
 node_modules/
 dist/
 bots.json
+services/market-wiz/data/
 .DS_Store

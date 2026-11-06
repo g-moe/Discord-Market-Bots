@@ -1,9 +1,16 @@
 import * as fs from "fs";
 import { Client, Events, GatewayIntentBits } from "discord.js";
-import { botController } from "./redis";
-import { Bot, BotConfig } from "./types";
+import { handleTickerUpdate, Ticker } from "./ticker-updates";
+import { BotConfig } from "./types";
+import { startWebhookServer, WEBHOOK_PORT } from "./webhook";
 import { createTickerMentionMsg } from "./messages";
 import logger from "./logger";
+
+// Read secrets
+const { WEBHOOK_SECRET } = process.env;
+if (!WEBHOOK_SECRET) {
+  throw new Error("WEBHOOK_SECRET environment variable is not set");
+}
 
 // Read in bots
 const botConfig: BotConfig = JSON.parse(fs.readFileSync("./bots.json", "utf8"));
@@ -12,7 +19,7 @@ if (!botConfig.bots || botConfig.bots.length === 0) {
 }
 
 // Initialize the bots
-const tickers: { client: Client, bot: Bot }[] = [];
+const tickers: Ticker[] = [];
 botConfig.bots.forEach(bot => {
   const client = new Client({
     intents: [
@@ -42,4 +49,8 @@ botConfig.bots.forEach(bot => {
   client.login(bot.token);
 });
 
-botController(tickers).catch(logger.error);
+startWebhookServer({
+  onTickerUpdate: data => handleTickerUpdate({ data, tickers }),
+  port: WEBHOOK_PORT,
+  secret: WEBHOOK_SECRET,
+});

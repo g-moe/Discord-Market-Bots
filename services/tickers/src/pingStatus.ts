@@ -1,4 +1,3 @@
-import axios from "axios";
 import logger from "./logger";
 
 /**
@@ -13,9 +12,13 @@ export async function pingHeartbeat(): Promise<void> {
       return;
     }
 
-    await axios.post(heartbeatUrl);
+    const response = await fetch(heartbeatUrl, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`Uptime ping failed with ${response.status}`);
+    }
+
     logger.debug("Uptime ping sent successfully");
   } catch (error) {
-    logger.error("Failed to send uptime ping:", error);
+    logger.error({ err: error }, "failed to send uptime ping");
   }
 }

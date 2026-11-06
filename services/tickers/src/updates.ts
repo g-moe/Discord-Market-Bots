@@ -1,7 +1,17 @@
-import { ActivityType, Client } from "discord.js";
-import axios, { isAxiosError } from "axios";
+import { ActivityType, Client, Guild } from "discord.js";
 import { Bot } from "./types";
 import logger from "./logger";
+
+const DISCORD_REQUEST_ATTEMPTS = 3;
+const DISCORD_REQUEST_TIMEOUT_MS = 10_000;
+const RETRYABLE_DISCORD_STATUSES: readonly number[] = [429, 500, 503];
+
+/** Non-2xx Discord API response; fetch resolves these instead of rejecting. */
+class DiscordHttpError extends Error {
+  constructor(readonly status: number, readonly retryAfter: string | null) {
+    super(`Discord application update failed with ${status}`);
+  }
+}
 
 export async function updateDiscordBot(client: Client, bot: Bot, data: any) {
   const botData = cleanBotData(bot, data)
@@ -13,36 +23,47 @@ export async function updateDiscordBot(client: Client, bot: Bot, data: any) {
   }
 
   // update info in all guilds
-  client.guilds.cache.forEach(async guild => {
-    if (!client.user) return;
-    const member = await guild.members.fetch(client.user.id);
-    member.setNickname(botData.nameUpdate);
-
-    // const addRole = guild.roles.cache.find(role => role.name === botData.addRole);
-    // const removeRole = guild.roles.cache.find(role => role.name === botData.removeRole);
-    const addRole = (await guild.roles.fetch()).find(role => role.name === botData.addRole);
-    const removeRole = (await guild.roles.fetch()).find(role => role.name === botData.removeRole);
-
-    if (!addRole) {
-      console.log(`Role ${addRole} not found in ${guild.name}`);
-
-      return;
+  if (client.user) {
+    for (const guild of client.guilds.cache.values()) {
+      void updateGuildMember({ botData, guild, userId: client.user.id });
     }
-    member.roles.add(addRole)
-      .catch(logger.error);
-
-    if (!removeRole) {
-      console.log(`Role ${removeRole} not found in ${guild.name}`);
-      return;
-    }
-    member.roles.remove(removeRole)
-      .catch(logger.error);
-  });
+  }
 
   // update bio info
   await updateBotBio(bot, botData)
 
   logger.debug({ symbol: bot.symbolName }, "finished updating ticker bot")
+}
+
+/**
+ * Set the bot's nickname and swap its green/red role in one guild.
+ * Does not throw; a missing role or a rejected Discord call (e.g. a revoked permission) is logged.
+ *
+ * @example
+ * void updateGuildMember({ botData, guild, userId: client.user.id });
+ */
+async function updateGuildMember({ botData, guild, userId }: { botData: any; guild: Guild; userId: string }) {
+  try {
+    const member = await guild.members.fetch(userId);
+    await member.setNickname(botData.nameUpdate);
+
+    const roles = await guild.roles.fetch();
+    const addRole = roles.find(role => role.name === botData.addRole);
+    if (!addRole) {
+      logger.warn({ guild: guild.name, role: botData.addRole }, "ticker role not found");
+      return;
+    }
+    await member.roles.add(addRole);
+
+    const removeRole = roles.find(role => role.name === botData.removeRole);
+    if (!removeRole) {
+      logger.warn({ guild: guild.name, role: botData.removeRole }, "ticker role not found");
+      return;
+    }
+    await member.roles.remove(removeRole);
+  } catch (error) {
+    logger.error({ err: error, guild: guild.name }, "failed to update ticker bot in guild");
+  }
 }
 
 function cleanBotData(bot: Bot, data: any): any {
@@ -74,7 +95,7 @@ async function updateBotBio(bot: Bot, botData: any): Promise<void> {
   const data: { description: string } = { description: bioUpdate };
 
   await patchDiscordApplication(bot, data);
-};
+}
 
 function displayValue(value: unknown) {
   if (value === undefined || value === null || value === "" || value === "NaN") {
@@ -89,14 +110,12 @@ function displayValue(value: unknown) {
 }
 
 function isRetryableDiscordError(error: unknown) {
-  if (!isAxiosError(error)) return false;
+  if (error instanceof DiscordHttpError) {
+    return RETRYABLE_DISCORD_STATUSES.includes(error.status);
+  }
 
-  return (
-    error.code === "ECONNABORTED" ||
-    error.response?.status === 500 ||
-    error.response?.status === 503 ||
-    error.response?.status === 429
-  );
+  // A fetch aborted by AbortSignal.timeout rejects with a TimeoutError
+  return error instanceof Error && error.name === "TimeoutError";
 }
 
 function sleep(ms: number) {
@@ -109,12 +128,21 @@ async function patchDiscordApplication(bot: Bot, data: { description: string }) 
     Authorization: `Bot ${bot.token}`,
   };
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= DISCORD_REQUEST_ATTEMPTS; attempt++) {
     try {
-      await axios.patch(url, data, { headers, timeout: 10000 });
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(DISCORD_REQUEST_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new DiscordHttpError(response.status, response.headers.get("retry-after"));
+      }
+
       return;
     } catch (error) {
-      if (!isRetryableDiscordError(error) || attempt === 3) {
+      if (!isRetryableDiscordError(error) || attempt === DISCORD_REQUEST_ATTEMPTS) {
         logger.warn({
           err: error,
           symbol: bot.symbolName,
@@ -124,7 +152,7 @@ async function patchDiscordApplication(bot: Bot, data: { description: string }) 
         return;
       }
 
-      const retryAfterHeader = isAxiosError(error) ? error.response?.headers?.["retry-after"] : undefined;
+      const retryAfterHeader = error instanceof DiscordHttpError ? error.retryAfter : undefined;
       const retryAfterSeconds = Number(retryAfterHeader ?? attempt);
       const retryDelay = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
         ? retryAfterSeconds * 1000

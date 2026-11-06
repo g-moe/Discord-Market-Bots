@@ -10,7 +10,7 @@
 
 ### 4. Create Tradingview Indicator
 
-### 5. Set alert in Tradingview & set webhook URL to server URL
+### 5. Set alert in TradingView & set the webhook URL to the tunnel hostname
 
 ### 6. Gateway intents
 
@@ -27,8 +27,7 @@ The documentation lists this exception: "Content in which the app is mentioned".
 
 ### 7. Deploy both bot services together
 
-1. Run `npm test` from the repository root. Confirm that Market Wizard has
-   Message Content access before the deployment.
+1. Run `npm test` from the repository root.
 
 2. Transfer the code to the deployment host through the usual release process.
    Keep the host's existing bot configuration and environment values.
@@ -42,19 +41,18 @@ The documentation lists this exception: "Content in which the app is mentioned".
 4. Deploy the application stack together:
 
    ```bash
-   docker compose up -d
+   docker compose --profile prod up -d
    docker compose logs --since 5m tickers market-wiz
    ```
 
 5. Check that each configured bot logs in. Check price, percentage activity,
    status, role color, and mention replies in Discord. Check both regular
    mentions and nickname mentions. Also check Market Wizard's slash commands
-   and the Financial Juice news relay.
+   and that Financial Juice headlines reach the news channel.
 
 6. After these checks pass, turn off Presence, Server Members, and Message
-   Content intents in each ticker application's Developer Portal Bot settings.
-   Save each application's settings. Do not apply this step to Market Wizard
-   or other applications with a different client.
+   Content intents in each ticker application's and Market Wizard's Developer
+   Portal Bot settings. Save each application's settings.
 
 7. Restart the ticker container and repeat the checks. A fresh connection checks
    that the bots can connect with the new portal settings:
@@ -67,17 +65,14 @@ The documentation lists this exception: "Content in which the app is mentioned".
 If an older image is needed for recovery, enable its required Message Content
 intent before starting that image. The older client requests that intent.
 
-### 8. Market Wizard intents
+### 8. Market Wizard intents and news headlines
 
-Market Wizard uses `Guilds`, `GuildMessages`, and `MessageContent`. It reads
-Financial Juice messages from its configured source channel and sends news
-embeds to the news channel. It also sends breaking news to the trading chat.
-This feature requires Message Content access. Market Wizard does not need
-Presence or Server Members intents.
+Market Wizard requests only the `Guilds` intent.
 
-Do not turn off Market Wizard's Message Content intent during ticker cleanup.
-The news reader is always registered. There is no environment flag that
-changes its intent requirements.
+Market Wizard polls Financial Juice headlines once per minute and stores them
+in SQLite at `services/market-wiz/data/market-wiz.db`. It posts each headline
+once, only if it is less than 5 minutes old. Breaking headlines also go to the
+trading chat. A daily cleanup deletes headlines older than 3 days.
 
 Run `npm test` from the repository root to build and test both bot services.
 The release workflow also builds both Docker images before deployment.

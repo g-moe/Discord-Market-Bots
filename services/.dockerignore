@@ -1,3 +1,4 @@
-.venv
-__pycache__
-node_modules
+**/node_modules
+*/dist
+*/logs
+market-wiz/data
