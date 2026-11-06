@@ -10,8 +10,6 @@ import { NewsHeadline } from "./news-headline-schema";
  * Widget: `GET https://feed.financialjuice.com/widgets/headlines.aspx` (scraped for the `info` token)
  * API: `GET https://live.financialjuice.com/FJService.asmx/GetPreviousNews` (needs the token, returns JSON wrapped in XML)
  *
- * @see tradester-monorepo `cron_newsService/newsService.ts`, which this ports.
- *
  * @example
  * const headlines = await fetchNewsHeadlines();
  * headlines[0]; // { date: 1793973816073, id: "9840860", important: false, title: "TSMC making plans for 3D DRAM" }

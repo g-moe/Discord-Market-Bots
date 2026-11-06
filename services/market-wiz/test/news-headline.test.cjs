@@ -51,7 +51,7 @@ function fakeClient({ failingChannelIds = [] } = {}) {
   return { client, sent };
 }
 
-test("raw FinancialJuice items normalize, titles decode like tradester, and invalid items are skipped", () => {
+test("raw FinancialJuice items normalize, titles decode HTML entities, and invalid items are skipped", () => {
   const parsed = parseNewsHeadlines([
     { NewsID: 9840860, Title: "FinancialJuice: S&P futures rise", DatePublished: "2026-11-06T14:03:36.073", Breaking: false, Level: "" },
     { NewsID: 9840861, Title: "Fed holds", DatePublished: "2026-11-06T14:04:00", Breaking: false, Level: "active active-critical" },
