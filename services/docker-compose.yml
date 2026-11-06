@@ -72,6 +72,7 @@ services:
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
     volumes:
       - ./market-wiz/logs:/app/logs
+      - ./market-wiz/data:/app/data
     restart: always
     logging: *default-logging
     platform: linux/amd64

@@ -1,37 +1,28 @@
-import { ActivityType, Client, Events, GatewayIntentBits, Guild, Interaction, Message } from "discord.js";
-import logger from "./utils/logger";
-import { config } from "./utils/config";
+import { ActivityType, Client, Events, GatewayIntentBits, Guild, Interaction } from "discord.js";
 import { commands } from "./commands";
-import { deployCommands, deployCommandsToAll } from "./utils/deploy";
-import { newsHeadline } from "./services/news/news-headline";
 import { setupNewsCalendar } from "./services/news/news-calendar";
+import { setupNewsHeadlines } from "./services/news/news-headline";
+import { createNewsHeadlineStore } from "./services/news/news-headline-store";
+import { config } from "./utils/config";
+import { deployCommands, deployCommandsToAll } from "./utils/deploy";
+import logger from "./utils/logger";
+import { DAY_MS } from "./utils/time";
 
-// Initialize the bot
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ]
+  intents: [GatewayIntentBits.Guilds]
 });
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-function setActivity(client: Client) {
-  client.user?.setActivity("🧙🏻‍♂️ Summoning Market Info", {
-    type: ActivityType.Custom,
-  });
-}
+const NEWS_HEADLINE_DB_PATH = "./data/market-wiz.db";
+const newsHeadlineStore = createNewsHeadlineStore({ dbPath: NEWS_HEADLINE_DB_PATH });
 
 client.on(Events.ClientReady, () => {
-  // Log ready
   logger.info(`Logged in as ${client.user?.tag}!`);
 
-  // Initial setup
   setActivity(client);
   deployCommandsToAll();
   setupNewsCalendar(client);
+  setupNewsHeadlines({ client, store: newsHeadlineStore });
 
-  // Refresh activity every 24 hours
   setInterval(() => setActivity(client), DAY_MS);
 });
 
@@ -44,13 +35,14 @@ client.on(Events.GuildCreate, async (guild: Guild) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-  if (!interaction.isCommand()) {
+  const DM_COMMAND_MESSAGE = "Commands can only be used in servers, not in DMs.";
+
+  if (!interaction.isChatInputCommand()) {
     return;
   }
-  
-  // Check if the interaction is from a guild (server) and not a DM
+
   if (!interaction.guild) {
-    await interaction.reply({ content: "Commands can only be used in servers, not in DMs.", ephemeral: true });
+    await interaction.reply({ content: DM_COMMAND_MESSAGE, ephemeral: true });
     return;
   }
 
@@ -65,19 +57,16 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
   }
 });
 
-client.on(Events.MessageCreate, async (message: Message) => {
-  if (message.channelId !== "1248771982980284436" || message.author.id !== "1240686103959179274") return;
-
-  if (!message.content.trim()) {
-    logger.warn({ messageId: message.id }, "news source message has no content");
-    return;
-  }
-
-  try {
-    await newsHeadline(message);
-  } catch (error) {
-    logger.error({ err: error }, "news headline relay failed");
-  }
-});
-
 client.login(config.DISCORD_TOKEN);
+
+/**
+ * Set the bot's custom status; `ClientReady` sets it once and then refreshes it every `DAY_MS`.
+ *
+ * @example
+ * setActivity(client);
+ */
+function setActivity(client: Client) {
+  const ACTIVITY_TEXT = "🧙🏻‍♂️ Summoning Market Info";
+
+  client.user?.setActivity(ACTIVITY_TEXT, { type: ActivityType.Custom });
+}

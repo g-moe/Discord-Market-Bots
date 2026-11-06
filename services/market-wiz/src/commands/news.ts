@@ -3,43 +3,56 @@ import {
   APIApplicationCommandOptionChoice,
   ButtonBuilder,
   ButtonStyle,
-  CommandInteraction,
+  ChatInputCommandInteraction,
   EmbedBuilder,
   SlashCommandBuilder
 } from "discord.js";
-
+import { countryOptions, fetchNewsData, FetchNewsParams, importanceOptions, NewsEvent, timeframeOptions } from "../services/news/news-fetch";
 import logger from "../utils/logger";
+import { HOUR_MS, MINUTE_MS } from "../utils/time";
 
-import { countryOptions, fetchNewsData, importanceOptions, TFetchNewsParams, timeframeOptions, TNewsEvent } from "../services/news/news-fetch";
+/**
+ * Build the calendar embed and its "See More News" button for the selected filters.
+ * Returns `null` for a scheduled post with no events, so the caller skips posting; a user request gets a "no events" embed instead.
+ *
+ * @example
+ * const result = await createNewsEmbed({ params: { country: "USA", timeframe: "Next 5 minutes", importance: "🔴🟠🟡" }, scheduled: true });
+ * result?.embed.toJSON().title; // "📅 **Upcoming News Events**"
+ */
+export async function createNewsEmbed({ params, scheduled }: { params: FetchNewsParams; scheduled: boolean }) {
+  const EMBED_COLOR = "#1E1F20";
+  const EMBED_TITLE = "📅 **Upcoming News Events**";
+  const EMBED_FOOTER_TEXT = "All event times are in Eastern Standard Timezone";
+  const EMBED_FOOTER_ICON_URL = "https://cdn.discordapp.com/emojis/1212202807193767976.webp?quality=lossless";
+  const NO_EVENTS_DESCRIPTION = "*No news events were found to be scheduled with your selected criteria.*";
+  const SEE_MORE_LABEL = "See More News";
+  const SEE_MORE_EMOJI = "📆";
+  const SEE_MORE_URL = "https://www.tradingview.com/economic-calendar/?aff_id=133415";
+  const MAX_EMBED_FIELDS = 25;
 
-export async function createNewsEmbed(scheduled:boolean, params: TFetchNewsParams) {
   const data = await fetchNewsData(params);
 
   const embed = new EmbedBuilder()
-    .setColor("#1E1F20")
-    .setTitle("📅 **Upcoming News Events**")
+    .setColor(EMBED_COLOR)
+    .setTitle(EMBED_TITLE)
     .setTimestamp()
-    .setFooter({
-      text: "All event times are in Eastern Standard Timezone",
-      iconURL: "https://cdn.discordapp.com/emojis/1212202807193767976.webp?quality=lossless"
-    })
+    .setFooter({ text: EMBED_FOOTER_TEXT, iconURL: EMBED_FOOTER_ICON_URL });
 
-  const openChartButton = new ButtonBuilder()
-    .setLabel("See More News")
-    .setStyle(ButtonStyle.Link)
-    .setEmoji("📆")
-    .setURL("https://www.tradingview.com/economic-calendar/?aff_id=133415")
-
-  const row: ActionRowBuilder = new ActionRowBuilder()
-    .addComponents(openChartButton);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setLabel(SEE_MORE_LABEL)
+      .setStyle(ButtonStyle.Link)
+      .setEmoji(SEE_MORE_EMOJI)
+      .setURL(SEE_MORE_URL)
+  );
 
   if (!data || data.length === 0) {
     if (scheduled) {
       return null;
-    } else {
-      embed.setDescription("*No news events were found to be scheduled with your selected criteria.*");
-      return { embed, row };
     }
+
+    embed.setDescription(NO_EVENTS_DESCRIPTION);
+    return { embed, row };
   }
 
   const eventsGroupedByDate = groupEventsByDate(data);
@@ -48,34 +61,11 @@ export async function createNewsEmbed(scheduled:boolean, params: TFetchNewsParam
     groupCount: Object.keys(eventsGroupedByDate).length,
     scheduled
   }, "created news calendar embed");
-  let fieldsAdded = 0;
-  for (const datetime in eventsGroupedByDate) {
-    if (fieldsAdded >= 25) break;
 
-    const events = eventsGroupedByDate[datetime];
-    let eventDescriptions = events.map(event =>
-      `${getCountryFlag()} ${getColorForImportance(event.volatility, event.name)} - ${event.name}`).join("\n");
-
-    if (eventDescriptions.length > 1024) {
-      eventDescriptions = eventDescriptions.substring(0, 1021) + "...";
-    }
-
-    const date = new Date(datetime).toLocaleTimeString("en-US", {
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "America/New_York"
-    });
-
-    embed.addFields(
-      {
-        name: `**__ ${date}__**__  -  *(${getTimeDelta(datetime)})*__`,
-        value: eventDescriptions,
-        inline: false
-      });
-    fieldsAdded++;
-  }
+  const fields = Object.entries(eventsGroupedByDate)
+    .slice(0, MAX_EMBED_FIELDS)
+    .map(([datetime, events]) => createEventField({ datetime, events }));
+  embed.addFields(fields);
 
   return { embed, row };
 }
@@ -111,97 +101,145 @@ export const data = new SlashCommandBuilder()
       )
   );
 
-export async function execute(interaction: CommandInteraction) {
+/**
+ * Handle `/news`: reply privately, then edit the reply with the calendar embed or an error message.
+ * Does not throw; failures are logged and shown to the user.
+ *
+ * @example
+ * await execute(interaction); // reply: "USA News Events for Next 24 hours" + embed
+ */
+export async function execute(interaction: ChatInputCommandInteraction) {
+  const MISSING_OPTIONS_MESSAGE = "Error: Missing required options";
+  const ERROR_MESSAGE = "Oops! The mystical energies needed to foresee the future are currently unavailable. Please try again later 🧙🏻‍♂️";
+
   const country = interaction.options.get("country")?.value?.toString();
   const timeframe = interaction.options.get("timeframe")?.value?.toString();
   const importance = interaction.options.get("importance")?.value?.toString();
 
   if (!country || !timeframe || !importance) {
     logger.error("Missing required options");
-    await interaction.reply({ content: "Error: Missing required options", ephemeral: true });
+    await interaction.reply({ content: MISSING_OPTIONS_MESSAGE, ephemeral: true });
     return;
   }
 
-  const countryName = countryOptions[country as keyof typeof countryOptions];
-  const timeframeName = timeframeOptions[timeframe as keyof typeof timeframeOptions];
-  const importanceName = importanceOptions[importance as keyof typeof importanceOptions];
+  const params: FetchNewsParams = {
+    country: countryOptions[country as keyof typeof countryOptions],
+    timeframe: timeframeOptions[timeframe as keyof typeof timeframeOptions],
+    importance: importanceOptions[importance as keyof typeof importanceOptions],
+  };
+  const newsString = `${params.country} News Events for ${params.timeframe}`;
 
-  const newsString = `${countryName} News Events for ${timeframeName}`;
-  const replyMessage = `Peeking into the future for ${newsString}...please wait 🔮`;
-  const errorMessage = "Oops! The mystical energies needed to foresee the future are currently unavailable. Please try again later 🧙🏻‍♂️";
+  try {
+    await interaction.reply({ content: `Peeking into the future for ${newsString}...please wait 🔮`, ephemeral: true });
 
-  await interaction.reply({ content: replyMessage, ephemeral: true })
-    .then(async () => {
-      if (!country || !timeframe || !importance) throw new Error("Invalid options");
-      const result = await createNewsEmbed(false, { 
-        country: countryName,
-        timeframe: timeframeName,
-        importance: importanceName
-      });
-      if (!result) throw new Error("Error creating embed");
-      await interaction.editReply({ embeds: [result.embed], components: [result.row as any], content: newsString });
-    })
+    const result = await createNewsEmbed({ params, scheduled: false });
+    if (!result) throw new Error("Error creating embed");
 
-    .catch(async error => {
-      logger.error(error);
-      await interaction.editReply({ content: errorMessage })
-    });
+    await interaction.editReply({ embeds: [result.embed], components: [result.row], content: newsString });
+  } catch (error) {
+    logger.error(error);
+    await interaction.editReply({ content: ERROR_MESSAGE });
+  }
 }
 
-type EventsGroupedByDate = { [key: string]: TNewsEvent[] };
-function groupEventsByDate(data: TNewsEvent[]) {
-  const eventsGroupedByDate = data.reduce<EventsGroupedByDate>((acc, event) => {
-    const eventDatetime = event.dateUtc;
-    if (!acc[eventDatetime]) {
-      acc[eventDatetime] = [];
-    }
-    acc[eventDatetime].push(event);
+/**
+ * Group events by their start time, with the soonest time first.
+ *
+ * @example
+ * groupEventsByDate(events); // { "2026-11-06T13:30:00Z": [cpi, coreCpi], "2026-11-06T15:00:00Z": [ism] }
+ */
+function groupEventsByDate(data: readonly NewsEvent[]): Record<string, NewsEvent[]> {
+  const grouped = data.reduce<Record<string, NewsEvent[]>>((acc, event) => {
+    (acc[event.dateUtc] ??= []).push(event);
     return acc;
   }, {});
 
-  // Sort the dates so that the closest events appear first
-  const sortedDates = Object.keys(eventsGroupedByDate).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  const sortedDates = Object.keys(grouped).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
-  // Create a new object with sorted dates
-  const sortedEventsGroupedByDate: EventsGroupedByDate = {};
-  for (const date of sortedDates) {
-    sortedEventsGroupedByDate[date] = eventsGroupedByDate[date];
-  }
-
-  return sortedEventsGroupedByDate;
+  return Object.fromEntries(sortedDates.map(date => [date, grouped[date]]));
 }
 
-function getCountryFlag() {
-  return "🇺🇸"
+/**
+ * Build one embed field listing the events at `datetime`, truncated to Discord's field value limit.
+ *
+ * @example
+ * createEventField({ datetime: "2026-11-06T13:30:00Z", events: [cpi] });
+ * // { name: "**__ November 6 at 08:30 AM__**__  -  *(2 hours)*__", value: "🇺🇸 🔴 - CPI", inline: false }
+ */
+function createEventField({ datetime, events }: { datetime: string; events: readonly NewsEvent[] }) {
+  const MAX_FIELD_VALUE_LENGTH = 1024;
+  const TRUNCATION_SUFFIX = "...";
+  const EVENT_TIME_ZONE = "America/New_York";
+  const COUNTRY_FLAG = "🇺🇸";
+
+  const descriptions = events
+    .map(event => `${COUNTRY_FLAG} ${getColorForImportance({ importance: event.volatility, title: event.name })} - ${event.name}`)
+    .join("\n");
+
+  const value = descriptions.length > MAX_FIELD_VALUE_LENGTH
+    ? descriptions.substring(0, MAX_FIELD_VALUE_LENGTH - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX
+    : descriptions;
+
+  const date = new Date(datetime).toLocaleTimeString("en-US", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: EVENT_TIME_ZONE
+  });
+
+  return { name: `**__ ${date}__**__  -  *(${getTimeDelta(datetime)})*__`, value, inline: false };
 }
 
-function getColorForImportance(importance: string, title: string) {
-  if (title.toUpperCase().includes("FED")) {
-    return "🔵";
+/**
+ * Pick the emoji for an event: blue for Fed events, otherwise by importance.
+ *
+ * @example
+ * getColorForImportance({ importance: "HIGH", title: "CPI" }); // "🔴"
+ * getColorForImportance({ importance: "LOW", title: "Fed Chair Speaks" }); // "🔵"
+ */
+function getColorForImportance({ importance, title }: { importance: string; title: string }) {
+  const FED_KEYWORD = "FED";
+  const FED_EMOJI = "🔵";
+  const UNKNOWN_IMPORTANCE_EMOJI = "⚪️";
+  const IMPORTANCE_EMOJIS: Readonly<Record<string, string>> = {
+    HIGH: "🔴",
+    MEDIUM: "🟠",
+    LOW: "🟡",
+  };
+
+  if (title.toUpperCase().includes(FED_KEYWORD)) {
+    return FED_EMOJI;
   }
 
-  switch (importance) {
-  case "HIGH":
-    return "🔴";
-  case "MEDIUM":
-    return "🟠";
-  case "LOW":
-    return "🟡";
-  default:
-    return "⚪️";
-  }
+  return IMPORTANCE_EMOJIS[importance] ?? UNKNOWN_IMPORTANCE_EMOJI;
 }
 
+/**
+ * Describe how far away `datetime` is, in whole minutes under an hour and whole hours otherwise.
+ *
+ * @example
+ * getTimeDelta(new Date(Date.now() + 90 * MINUTE_MS).toISOString()); // "1 hour"
+ */
 function getTimeDelta(datetime: string) {
-  const now = new Date();
-  const eventDate = new Date(datetime);
-  const deltaMs = eventDate.getTime() - now.getTime();
-  const deltaMinutes = Math.floor(deltaMs / (1000 * 60));
-  
-  if (deltaMinutes < 60) {
-    return `${deltaMinutes} minute${deltaMinutes !== 1 ? "s" : ""}`;
-  } else {
-    const deltaHours = Math.floor(deltaMinutes / 60);
-    return `${deltaHours} hour${deltaHours !== 1 ? "s" : ""}`;
+  const MINUTES_PER_HOUR = HOUR_MS / MINUTE_MS;
+
+  const deltaMinutes = Math.floor((new Date(datetime).getTime() - Date.now()) / MINUTE_MS);
+
+  if (deltaMinutes < MINUTES_PER_HOUR) {
+    return pluralize({ count: deltaMinutes, unit: "minute" });
   }
+
+  return pluralize({ count: Math.floor(deltaMinutes / MINUTES_PER_HOUR), unit: "hour" });
+}
+
+/**
+ * Format a count with its unit, adding "s" unless the count is exactly 1.
+ *
+ * @example
+ * pluralize({ count: 1, unit: "hour" }); // "1 hour"
+ * pluralize({ count: 5, unit: "minute" }); // "5 minutes"
+ */
+function pluralize({ count, unit }: { count: number; unit: string }) {
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }

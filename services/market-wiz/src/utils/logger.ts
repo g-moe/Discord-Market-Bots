@@ -1,14 +1,19 @@
 import * as fs from "fs";
+import * as path from "path";
 import pino from "pino";
+
+const LOG_DIR = "./logs";
+
+fs.mkdirSync(LOG_DIR, { recursive: true });
 
 const streams = [
   {
     level: "info",
-    stream: fs.createWriteStream("./logs/app.log", { flags: "a" }),
+    stream: fs.createWriteStream(path.join(LOG_DIR, "app.log"), { flags: "a" }),
   },
   {
     level: "error",
-    stream: fs.createWriteStream("./logs/error.log", { flags: "a" }),
+    stream: fs.createWriteStream(path.join(LOG_DIR, "error.log"), { flags: "a" }),
   },
   {
     level: "info",
